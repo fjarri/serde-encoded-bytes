@@ -21,7 +21,6 @@ hex = { version = "0.4", default-features = false, features = ["alloc"] }
 bincode = { version = "2.0.0-rc.3", default-features = false, features = ["alloc", "serde"] }
 rmp-serde = "1"
 serde_json = "1"
-generic-array = "0.14"
 ciborium = "0.2"
 serde-json-core = { version = "0.6", default-features = false }
 toml = "0.8"
