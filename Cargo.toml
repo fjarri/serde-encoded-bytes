@@ -1,0 +1,37 @@
+[package]
+name = "serde-encoded-bytes"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["Bogdan Opanchuk <bogdan@opanchuk.net>"]
+description = "Efficient bytestring serialization for Serde-supporting types"
+repository = "https://github.com/fjarri/serde-encoded-bytes"
+readme = "README.md"
+categories = ["no-std", "encoding"]
+rust-version = "1.70.0"
+
+[dependencies]
+serde = { version = "1", default-features = false }
+hex = { version = "0.4", default-features = false, features = ["alloc"], optional = true }
+base64 = { version = "0.21", default-features = false, features = ["alloc"], optional = true }
+
+[dev-dependencies]
+serde = { version = "1", default-features = false, features = ["derive"] }
+hex = { version = "0.4", default-features = false, features = ["alloc"] }
+bincode = { version = "2.0.0-rc.3", default-features = false, features = ["alloc", "serde"] }
+rmp-serde = "1"
+serde_json = "1"
+generic-array = "0.14"
+ciborium = "0.2"
+serde-json-core = { version = "0.6", default-features = false }
+toml = "0.8"
+
+[features]
+# Unfortunately we need this for the doctests to work
+# (since we need some encoding to be present in the API).
+# Should be removed when https://github.com/rust-lang/cargo/issues/2911 is fixed.
+default = ["hex"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
