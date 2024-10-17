@@ -2,6 +2,7 @@
 
 #![allow(clippy::unwrap_used)]
 
+mod asn1;
 mod bincode;
 mod cbor;
 mod common;

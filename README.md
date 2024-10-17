@@ -79,6 +79,7 @@ While this crate is supposed to work for any format that supports `serde`, it is
 - [`bincode`](https://crates.io/crates/bincode) v2.0.0-rc.3
 - [`ciborium`](https://crates.io/crates/ciborium) v0.2
 - [`rmp-serde`](https://crates.io/crates/rmp-serde) v1
+- [`serde_asn1_der`](https://crates.io/crates/serde_asn1_der) v0.8
 - [`serde-json-core`](https://crates.io/crates/serde-json-core) v0.6
 - [`serde-json`](https://crates.io/crates/serde-json) v1
 - [`toml`](https://crates.io/crates/toml) v0.8
