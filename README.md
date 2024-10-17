@@ -17,16 +17,16 @@ use serde::{Serialize, Deserialize};
 struct Array([u8; 16]);
 
 let array = Array([
-    0, 1, 0xf2, 3, 0xf4, 5, 0xf6, 7,
-    0xf8, 9, 0xfa, 11, 0xfc, 13, 14, 0xff
+    0, 1, 0xf2, 3, 0xf4, 5, 0xf6, 7, 0xf8, 9, 0xfa, 11, 0xfc, 13, 14, 0xff
 ]);
 
 // Serializing as MessagePack
 assert_eq!(
     rmp_serde::encode::to_vec(&array).unwrap(),
     [
-        220, 0, 16, 0, 1, 204, 242, 3, 204, 244, 5, 204, 246, 7,
-        204, 248, 9, 204, 250, 11, 204, 252, 13, 14, 204, 255
+        0xdc, 0, 0x10,
+        0, 1, 0xcc, 0xf2, 3, 0xcc, 0xf4, 5, 0xcc, 0xf6, 7,
+        0xcc, 0xf8, 9, 0xcc, 0xfa, 11, 0xcc, 0xfc, 13, 14, 0xcc, 0xff,
     ]
 );
 
@@ -36,7 +36,7 @@ assert_eq!(
     "[0,1,242,3,244,5,246,7,248,9,250,11,252,13,14,255]"
 );
 ```
-Note that in MessagePack the bytes with the value above `0x7f` (that is, the ones with the MSB set) are prefixed by `0xcc` (`204`), which makes the bytestring take more space than it should.
+Note that in MessagePack the bytes with the value above `0x7f` (that is, the ones with the MSB set) are prefixed by `0xcc`, which makes the bytestring take more space than it should.
 And in case of JSON, the bytestring is serialized as an array of integers, which is also not very efficient.
 
 This crate provides methods that can be used in [`serde(with)`](https://serde.rs/field-attrs.html#with) field attribute to amend this behavior and serialize bytestrings efficiently, verbatim in binary formats, or using the selected encoding in human-readable formats.
@@ -53,14 +53,13 @@ use serde_encoded_bytes::{ArrayLike, Hex};
 struct Array(#[serde(with = "ArrayLike::<Hex>")] [u8; 16]);
 
 let array = Array([
-    0, 1, 0xf2, 3, 0xf4, 5, 0xf6, 7,
-    0xf8, 9, 0xfa, 11, 0xfc, 13, 14, 0xff,
+    0, 1, 0xf2, 3, 0xf4, 5, 0xf6, 7, 0xf8, 9, 0xfa, 11, 0xfc, 13, 14, 0xff,
 ]);
 
 // Serializing as MessagePack
 assert_eq!(
     rmp_serde::encode::to_vec(&array).unwrap(),
-    [196, 16, 0, 1, 242, 3, 244, 5, 246, 7, 248, 9, 250, 11, 252, 13, 14, 255]
+    [0xc4, 0x10, 0, 1, 0xf2, 3, 0xf4, 5, 0xf6, 7, 0xf8, 9, 0xfa, 11, 0xfc, 13, 14, 0xff]
 );
 
 // Serializing as JSON
