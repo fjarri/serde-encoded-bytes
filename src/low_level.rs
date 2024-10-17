@@ -29,7 +29,7 @@ where
     }
 }
 
-struct SliceVisitor<Enc, T, V>(PhantomData<Enc>, PhantomData<T>, PhantomData<V>);
+struct SliceVisitor<Enc, T, V>(PhantomData<(Enc, T, V)>);
 
 impl<'de, Enc, T, V> de::Visitor<'de> for SliceVisitor<Enc, T, V>
 where
@@ -61,7 +61,7 @@ where
     }
 }
 
-struct ArrayVisitor<Enc, T, V, const N: usize>(PhantomData<Enc>, PhantomData<T>, PhantomData<V>);
+struct ArrayVisitor<Enc, T, V, const N: usize>(PhantomData<(Enc, T, V)>);
 
 impl<'de, Enc, T, V, const N: usize> de::Visitor<'de> for ArrayVisitor<Enc, T, V, N>
 where
@@ -108,17 +108,9 @@ where
     V: fmt::Display,
 {
     if deserializer.is_human_readable() {
-        deserializer.deserialize_str(SliceVisitor::<Enc, T, V>(
-            PhantomData,
-            PhantomData,
-            PhantomData,
-        ))
+        deserializer.deserialize_str(SliceVisitor::<Enc, T, V>(PhantomData))
     } else {
-        deserializer.deserialize_bytes(SliceVisitor::<Enc, T, V>(
-            PhantomData,
-            PhantomData,
-            PhantomData,
-        ))
+        deserializer.deserialize_bytes(SliceVisitor::<Enc, T, V>(PhantomData))
     }
 }
 
@@ -131,17 +123,9 @@ where
     V: fmt::Display,
 {
     if deserializer.is_human_readable() {
-        deserializer.deserialize_str(ArrayVisitor::<Enc, T, V, N>(
-            PhantomData,
-            PhantomData,
-            PhantomData,
-        ))
+        deserializer.deserialize_str(ArrayVisitor::<Enc, T, V, N>(PhantomData))
     } else {
-        deserializer.deserialize_bytes(ArrayVisitor::<Enc, T, V, N>(
-            PhantomData,
-            PhantomData,
-            PhantomData,
-        ))
+        deserializer.deserialize_bytes(ArrayVisitor::<Enc, T, V, N>(PhantomData))
     }
 }
 
