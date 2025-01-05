@@ -13,19 +13,13 @@ impl Encoding for Hex {
     }
 
     fn decode<E: de::Error>(string: &str) -> Result<Vec<u8>, E> {
-        if string.len() < 2 {
-            return Err(de::Error::invalid_value(
+        let digits = string.strip_prefix("0x").ok_or_else(|| {
+            de::Error::invalid_value(
                 de::Unexpected::Str(string),
                 &"0x-prefixed hex-encoded bytes",
-            ));
-        }
-        if string.get(..2).expect("the length is at least 2") != "0x" {
-            return Err(de::Error::invalid_value(
-                de::Unexpected::Str(string),
-                &"0x-prefixed hex-encoded bytes",
-            ));
-        }
-        hex::decode(string.get(2..).expect("the length is at least 2")).map_err(de::Error::custom)
+            )
+        })?;
+        hex::decode(digits).map_err(de::Error::custom)
     }
 }
 
@@ -71,6 +65,24 @@ mod tests {
         assert_eq!(
             hr_deserialize::<ArrayStruct>("\"0\"").unwrap_err(),
             "invalid value: string \"0\", expected 0x-prefixed hex-encoded bytes at line 1 column 3"
+        );
+    }
+
+    #[test]
+    fn multi_byte_character() {
+        // A regression test for a bug in validating a possible hex string
+        // that could lead to a panic.
+        // `str::get()` takes an index in bytes, but requires it to be aligned
+        // to the end of a character, so it can fail for multi-byte characters
+        // even if the index is technically lower than `str::len()`.
+
+        // This is a unicode "AE" with a 3-byte UTF-8 encoding (0xE1 0xB4 0x81)
+        assert_eq!(
+            hr_deserialize::<ArrayStruct>("\"\u{1D01}\"").unwrap_err(),
+            concat![
+                "invalid value: string \"\u{1D01}\", expected 0x-prefixed ",
+                "hex-encoded bytes at line 1 column 5"
+            ]
         );
     }
 }
