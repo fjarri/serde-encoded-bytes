@@ -1,5 +1,5 @@
 use alloc::format;
-use core::{fmt, marker::PhantomData};
+use core::{any::type_name, fmt, marker::PhantomData};
 
 use serde::{de, Deserializer, Serializer};
 
@@ -36,16 +36,26 @@ where
         SE: de::Error,
     {
         let bytes = Enc::decode(v)?;
-        AsRef::<[u8]>::as_ref(&bytes)
-            .try_into()
-            .map_err(de::Error::custom)
+        let bytes_len = bytes.len();
+        AsRef::<[u8]>::as_ref(&bytes).try_into().map_err(|err| {
+            de::Error::custom(format!(
+                "Failed to instantiate `{}` from a byte slice of length {bytes_len}: {err}",
+                type_name::<T>()
+            ))
+        })
     }
 
     fn visit_bytes<SE>(self, v: &[u8]) -> Result<Self::Value, SE>
     where
         SE: de::Error,
     {
-        v.try_into().map_err(de::Error::custom)
+        let v_len = v.len();
+        v.try_into().map_err(|err| {
+            de::Error::custom(format!(
+                "Failed to instantiate `{}` from a byte slice of length {v_len}: {err}",
+                type_name::<T>()
+            ))
+        })
     }
 }
 
@@ -71,10 +81,15 @@ where
         let bytes_len = bytes.len();
         let arr = <[u8; N]>::try_from(bytes).map_err(|_| {
             de::Error::custom(format!(
-                "Expected byte array of length {N}, got {bytes_len}",
+                "Expected a bytestring of length {N}, got {bytes_len}",
             ))
         })?;
-        T::try_from(arr).map_err(de::Error::custom)
+        T::try_from(arr).map_err(|err| {
+            de::Error::custom(format!(
+                "Failed to instantiate `{}` from `[u8; {N}]`: {err}",
+                type_name::<T>()
+            ))
+        })
     }
 
     fn visit_bytes<SE>(self, v: &[u8]) -> Result<Self::Value, SE>
@@ -83,9 +98,14 @@ where
     {
         let v_len = v.len();
         let arr = <[u8; N]>::try_from(v).map_err(|_| {
-            de::Error::custom(format!("Expected byte array of length {N}, got {v_len}",))
+            de::Error::custom(format!("Expected a bytestring of length {N}, got {v_len}",))
         })?;
-        T::try_from(arr).map_err(de::Error::custom)
+        T::try_from(arr).map_err(|err| {
+            de::Error::custom(format!(
+                "Failed to instantiate `{}` from `[u8; {N}]`: {err}",
+                type_name::<T>()
+            ))
+        })
     }
 }
 
@@ -120,6 +140,7 @@ where
 #[cfg(test)]
 mod tests {
     use alloc::{
+        format,
         string::{String, ToString},
         vec::Vec,
     };
@@ -139,6 +160,38 @@ mod tests {
 
     #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
     struct WrongValue(u32);
+
+    #[derive(Debug, PartialEq, Eq)]
+    struct BadType([u8; 4]);
+
+    impl AsRef<[u8]> for BadType {
+        fn as_ref(&self) -> &[u8] {
+            self.0.as_ref()
+        }
+    }
+
+    impl TryFrom<[u8; 4]> for BadType {
+        type Error = String;
+        fn try_from(_source: [u8; 4]) -> Result<Self, Self::Error> {
+            Err("BadType cannot deserialize from `[u8; 4]`".into())
+        }
+    }
+
+    impl TryFrom<&[u8]> for BadType {
+        type Error = String;
+        fn try_from(source: &[u8]) -> Result<Self, Self::Error> {
+            let source_len = source.len();
+            Err(format!(
+                "BadType cannot deserialize from `&[u8]` of length {source_len}"
+            ))
+        }
+    }
+
+    #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+    struct BadArrayStruct(#[serde(with = "ArrayLike::<Hex>")] BadType);
+
+    #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+    struct BadSliceStruct(#[serde(with = "SliceLike::<Hex>")] BadType);
 
     fn bin_serialize<T: Serialize>(value: T) -> Result<Vec<u8>, String> {
         rmp_serde::encode::to_vec(&value).map_err(|err| err.to_string())
@@ -174,13 +227,23 @@ mod tests {
         // Wrong length
         assert_eq!(
             hr_deserialize::<ArrayStruct>("\"0x0102030405\"").unwrap_err(),
-            "Expected byte array of length 4, got 5 at line 1 column 14"
+            "Expected a bytestring of length 4, got 5 at line 1 column 14"
         );
 
         // Unexpected value type
         assert_eq!(
             hr_deserialize::<ArrayStruct>("1").unwrap_err(),
             "invalid type: integer `1`, expected a bytestring of length 4 at line 1 column 1"
+        );
+
+        // A struct that always fails on deserialization
+        let bad_struct_str = hr_serialize(BadArrayStruct(BadType([1, 2, 3, 4]))).unwrap();
+        assert_eq!(
+            hr_deserialize::<BadArrayStruct>(&bad_struct_str).unwrap_err(),
+            concat![
+                "Failed to instantiate `serde_encoded_bytes::low_level::tests::BadType` ",
+                "from `[u8; 4]`: BadType cannot deserialize from `[u8; 4]` at line 1 column 12"
+            ]
         );
     }
 
@@ -197,7 +260,7 @@ mod tests {
         let wrong_len_bytes = bin_serialize(WrongLength([1, 2, 3, 4, 5])).unwrap();
         assert_eq!(
             bin_deserialize::<ArrayStruct>(&wrong_len_bytes).unwrap_err(),
-            "Expected byte array of length 4, got 5"
+            "Expected a bytestring of length 4, got 5"
         );
 
         // Unexpected value type
@@ -205,6 +268,16 @@ mod tests {
         assert_eq!(
             bin_deserialize::<ArrayStruct>(&wrong_val_bytes).unwrap_err(),
             "invalid type: integer `16909060`, expected a bytestring of length 4"
+        );
+
+        // A struct that always fails on deserialization
+        let bad_struct_bytes = bin_serialize(BadArrayStruct(BadType([1, 2, 3, 4]))).unwrap();
+        assert_eq!(
+            bin_deserialize::<BadArrayStruct>(&bad_struct_bytes).unwrap_err(),
+            concat![
+                "Failed to instantiate `serde_encoded_bytes::low_level::tests::BadType` ",
+                "from `[u8; 4]`: BadType cannot deserialize from `[u8; 4]`"
+            ]
         );
     }
 
@@ -228,6 +301,17 @@ mod tests {
             hr_deserialize::<VectorStruct>("1").unwrap_err(),
             "invalid type: integer `1`, expected a bytestring at line 1 column 1"
         );
+
+        // A struct that always fails on deserialization
+        let bad_struct_str = hr_serialize(BadSliceStruct(BadType([1, 2, 3, 4]))).unwrap();
+        assert_eq!(
+            hr_deserialize::<BadSliceStruct>(&bad_struct_str).unwrap_err(),
+            concat![
+                "Failed to instantiate `serde_encoded_bytes::low_level::tests::BadType` ",
+                "from a byte slice of length 4: ",
+                "BadType cannot deserialize from `&[u8]` of length 4 at line 1 column 12"
+            ]
+        );
     }
 
     #[test]
@@ -244,6 +328,17 @@ mod tests {
         assert_eq!(
             bin_deserialize::<VectorStruct>(&wrong_val_bytes).unwrap_err(),
             "invalid type: integer `16909060`, expected a bytestring"
+        );
+
+        // A struct that always fails on deserialization
+        let bad_struct_bytes = bin_serialize(BadSliceStruct(BadType([1, 2, 3, 4]))).unwrap();
+        assert_eq!(
+            bin_deserialize::<BadSliceStruct>(&bad_struct_bytes).unwrap_err(),
+            concat![
+                "Failed to instantiate `serde_encoded_bytes::low_level::tests::BadType` ",
+                "from a byte slice of length 4: ",
+                "BadType cannot deserialize from `&[u8]` of length 4"
+            ]
         );
     }
 }

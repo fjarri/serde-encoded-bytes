@@ -40,7 +40,7 @@ fn roundtrip_array() {
     let val_bigger_bytes = messagepack_serialize(val_bigger).unwrap();
     assert_eq!(
         messagepack_deserialize::<TestArray>(&val_bigger_bytes).unwrap_err(),
-        "Expected byte array of length 16, got 17"
+        "Expected a bytestring of length 16, got 17"
     );
 
     let val_smaller = SmallerTestArray {
@@ -49,7 +49,7 @@ fn roundtrip_array() {
     let val_smaller_bytes = messagepack_serialize(val_smaller).unwrap();
     assert_eq!(
         messagepack_deserialize::<TestArray>(&val_smaller_bytes).unwrap_err(),
-        "Expected byte array of length 16, got 15"
+        "Expected a bytestring of length 16, got 15"
     );
 }
 
