@@ -21,7 +21,7 @@ mod low_level;
 #[cfg(test)]
 mod tests;
 
-pub use containers::{ArrayLike, BoxedArrayLike, SliceLike};
+pub use containers::{ArrayLike, BorrowedSliceLike, BoxedArrayLike, SliceLike};
 pub use encoding::Encoding;
 
 #[cfg(feature = "generic-array-014")]

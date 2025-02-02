@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `GenericArray014` container type to support `generic-array=0.14`. ([#3])
+- `BorrowedSliceLike` container type. ([#3])
 
 
 [#3]: https://github.com/fjarri/serde-encoded-bytes/pull/3

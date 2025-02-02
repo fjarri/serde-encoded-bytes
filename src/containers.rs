@@ -75,6 +75,40 @@ impl<Enc: Encoding> SliceLike<Enc> {
     }
 }
 
+/// A container for slice-like data with borrow constructor,
+/// e.g. `GenericArray` from `generic-array=1`.
+///
+/// Note that the object will still be cloned, hence the `Clone` requirement.
+///
+/// For use in the `#[serde(with)]` field attribute.
+///
+/// Requirements:
+/// - serializer requires the field to implement `AsRef<[u8]>`;
+/// - deserializer requires the field to implement `Clone` and `&Self: TryFrom<&[u8]>`.
+pub struct BorrowedSliceLike<Enc: Encoding>(PhantomData<Enc>);
+
+impl<Enc: Encoding> BorrowedSliceLike<Enc> {
+    /// Serializes slice-like data.
+    pub fn serialize<T, S>(obj: &T, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        T: AsRef<[u8]>,
+        S: Serializer,
+    {
+        low_level::serialize_slice::<Enc, _>(obj.as_ref(), serializer)
+    }
+
+    /// Deserializes into slice-like data.
+    pub fn deserialize<'de, T, E, D>(deserializer: D) -> Result<T, D::Error>
+    where
+        D: Deserializer<'de>,
+        T: Clone,
+        for<'a> &'a T: TryFrom<&'a [u8], Error = E>,
+        E: fmt::Display,
+    {
+        low_level::deserialize_borrowed_slice::<Enc, _, _, _>(deserializer)
+    }
+}
+
 /// A container for boxed array-like data, e.g. `Box<[u8; 4]>`
 /// or `Box<generic_array::GenericArray<...>>`.
 ///
