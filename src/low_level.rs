@@ -109,6 +109,49 @@ where
     }
 }
 
+#[cfg(feature = "generic-array-014")]
+struct GenericArray014Visitor<Enc, L>(PhantomData<(Enc, L)>);
+
+#[cfg(feature = "generic-array-014")]
+impl<Enc, L> de::Visitor<'_> for GenericArray014Visitor<Enc, L>
+where
+    Enc: Encoding,
+    L: generic_array_014::ArrayLength<u8>,
+{
+    type Value = generic_array_014::GenericArray<u8, L>;
+
+    fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "a bytestring of length {}", L::to_usize())
+    }
+
+    fn visit_str<SE>(self, v: &str) -> Result<Self::Value, SE>
+    where
+        SE: de::Error,
+    {
+        let bytes = Enc::decode(v)?;
+        let bytes_len = bytes.len();
+        Self::Value::from_exact_iter(bytes).ok_or_else(|| {
+            de::Error::custom(format!(
+                "Expected a bytestring of length {}, got {bytes_len}",
+                L::to_usize()
+            ))
+        })
+    }
+
+    fn visit_bytes<SE>(self, v: &[u8]) -> Result<Self::Value, SE>
+    where
+        SE: de::Error,
+    {
+        let v_len = v.len();
+        Self::Value::from_exact_iter(v.iter().copied()).ok_or_else(|| {
+            de::Error::custom(format!(
+                "Expected a bytestring of length {}, got {v_len}",
+                L::to_usize()
+            ))
+        })
+    }
+}
+
 pub(crate) fn deserialize_slice<'de, Enc: Encoding, T, E, D>(deserializer: D) -> Result<T, D::Error>
 where
     D: Deserializer<'de>,
@@ -137,6 +180,21 @@ where
     }
 }
 
+#[cfg(feature = "generic-array-014")]
+pub(crate) fn deserialize_generic_array_014<'de, Enc: Encoding, L, D>(
+    deserializer: D,
+) -> Result<generic_array_014::GenericArray<u8, L>, D::Error>
+where
+    D: Deserializer<'de>,
+    L: generic_array_014::ArrayLength<u8>,
+{
+    if deserializer.is_human_readable() {
+        deserializer.deserialize_str(GenericArray014Visitor::<Enc, L>(PhantomData))
+    } else {
+        deserializer.deserialize_bytes(GenericArray014Visitor::<Enc, L>(PhantomData))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use alloc::{
@@ -149,11 +207,20 @@ mod tests {
 
     use crate::{encoding::Hex, ArrayLike, SliceLike};
 
+    #[cfg(feature = "generic-array-014")]
+    use crate::GenericArray014;
+
     #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
     struct ArrayStruct(#[serde(with = "ArrayLike::<Hex>")] [u8; 4]);
 
     #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
     struct VectorStruct(#[serde(with = "SliceLike::<Hex>")] Vec<u8>);
+
+    #[cfg(feature = "generic-array-014")]
+    #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+    struct GenericArray014Struct<L: generic_array_014::ArrayLength<u8>>(
+        #[serde(with = "GenericArray014::<Hex>")] generic_array_014::GenericArray<u8, L>,
+    );
 
     #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
     struct WrongLength(#[serde(with = "ArrayLike::<Hex>")] [u8; 5]);
@@ -339,6 +406,65 @@ mod tests {
                 "from a byte slice of length 4: ",
                 "BadType cannot deserialize from `&[u8]` of length 4"
             ]
+        );
+    }
+
+    #[cfg(feature = "generic-array-014")]
+    #[test]
+    fn ga014_visitor_human_readable() {
+        use generic_array_014::typenum::U4;
+
+        let val = GenericArray014Struct([1, 2, 3, 4].into());
+
+        // Normal operation
+        let val_str = hr_serialize(&val).unwrap();
+        let val_back = hr_deserialize::<GenericArray014Struct<U4>>(&val_str).unwrap();
+        assert_eq!(val, val_back);
+
+        // Failed to decode
+        assert_eq!(
+            hr_deserialize::<GenericArray014Struct<U4>>("\"0x0102030\"").unwrap_err(),
+            "Odd number of digits at line 1 column 11"
+        );
+
+        // Unexpected value type
+        assert_eq!(
+            hr_deserialize::<GenericArray014Struct<U4>>("1").unwrap_err(),
+            "invalid type: integer `1`, expected a bytestring of length 4 at line 1 column 1"
+        );
+
+        // Length mismatch
+        let bad_struct_str = hr_serialize(GenericArray014Struct([1, 2, 3].into())).unwrap();
+        assert_eq!(
+            hr_deserialize::<GenericArray014Struct<U4>>(&bad_struct_str).unwrap_err(),
+            "Expected a bytestring of length 4, got 3 at line 1 column 10"
+        );
+    }
+
+    #[cfg(feature = "generic-array-014")]
+    #[test]
+    fn ga014_visitor_binary() {
+        use generic_array_014::typenum::U4;
+
+        let val = GenericArray014Struct([1, 2, 3, 4].into());
+
+        // Normal operation
+        let val_bytes = bin_serialize(&val).unwrap();
+        let val_back = bin_deserialize::<GenericArray014Struct<U4>>(&val_bytes).unwrap();
+        assert_eq!(val, val_back);
+
+        // Unexpected value type
+        let wrong_val_bytes = bin_serialize(WrongValue(0x01020304)).unwrap();
+        assert_eq!(
+            bin_deserialize::<GenericArray014Struct<U4>>(&wrong_val_bytes).unwrap_err(),
+            "invalid type: integer `16909060`, expected a bytestring of length 4"
+        );
+
+        // Length mismatch
+        let bad_struct_bytes = bin_serialize(GenericArray014Struct([1, 2, 3].into())).unwrap();
+        assert_eq!(
+            bin_deserialize::<GenericArray014Struct<U4>>(&bad_struct_bytes).unwrap_err(),
+            "Expected a bytestring of length 4, got 3"
         );
     }
 }

@@ -24,6 +24,9 @@ mod tests;
 pub use containers::{ArrayLike, BoxedArrayLike, SliceLike};
 pub use encoding::Encoding;
 
+#[cfg(feature = "generic-array-014")]
+pub use containers::GenericArray014;
+
 // Specifically enable `Hex` for tests, since we need some encoding to be specified.
 // Should be removed when https://github.com/rust-lang/cargo/issues/2911 is fixed.
 #[cfg(any(feature = "hex", test))]
