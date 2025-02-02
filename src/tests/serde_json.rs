@@ -35,7 +35,7 @@ fn roundtrip_array() {
     let val_bigger_bytes = json_serialize(val_bigger).unwrap();
     assert_eq!(
         json_deserialize::<TestArray>(&val_bigger_bytes).unwrap_err(),
-        "Expected byte array of length 16, got 17 at line 1 column 47"
+        "Expected a bytestring of length 16, got 17 at line 1 column 47"
     );
 
     let val_smaller = SmallerTestArray {
@@ -44,7 +44,7 @@ fn roundtrip_array() {
     let val_smaller_bytes = json_serialize(val_smaller).unwrap();
     assert_eq!(
         json_deserialize::<TestArray>(&val_smaller_bytes).unwrap_err(),
-        "Expected byte array of length 16, got 15 at line 1 column 43"
+        "Expected a bytestring of length 16, got 15 at line 1 column 43"
     );
 }
 

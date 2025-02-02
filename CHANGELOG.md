@@ -4,6 +4,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.2.0] - Under development
+
+### Changed
+
+- Removed proxy traits `TryFromSliceRef` and `TryFromArray`. ([#3])
+
+
+### Added
+
+- `GenericArray014` container type to support `generic-array=0.14`. ([#3])
+- `BorrowedSliceLike` container type. ([#3])
+
+
+[#3]: https://github.com/fjarri/serde-encoded-bytes/pull/3
+
+
 ## [0.1.1] - 2025-01-05
 
 ### Fixed

@@ -52,7 +52,7 @@ fn roundtrip_array() {
     let val_bigger_bytes = cbor_serialize(val_bigger).unwrap();
     assert_eq!(
         cbor_deserialize::<TestArray>(&val_bigger_bytes).unwrap_err(),
-        "Semantic(None, \"Expected byte array of length 16, got 17\")"
+        "Semantic(None, \"Expected a bytestring of length 16, got 17\")"
     );
 
     let val_smaller = SmallerTestArray {
@@ -61,7 +61,7 @@ fn roundtrip_array() {
     let val_smaller_bytes = cbor_serialize(val_smaller).unwrap();
     assert_eq!(
         cbor_deserialize::<TestArray>(&val_smaller_bytes).unwrap_err(),
-        "Semantic(None, \"Expected byte array of length 16, got 15\")"
+        "Semantic(None, \"Expected a bytestring of length 16, got 15\")"
     );
 }
 

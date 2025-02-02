@@ -14,6 +14,7 @@ rust-version = "1.70.0"
 serde = { version = "1", default-features = false }
 hex = { version = "0.4", default-features = false, features = ["alloc"], optional = true }
 base64 = { version = "0.22", default-features = false, features = ["alloc"], optional = true }
+generic-array-014 = { package = "generic-array", version = "0.14", default-features = false, optional = true }
 
 [dev-dependencies]
 serde = { version = "1", default-features = false, features = ["derive"] }
@@ -31,6 +32,8 @@ serde_asn1_der = "0.8"
 # (since we need some encoding to be present in the API).
 # Should be removed when https://github.com/rust-lang/cargo/issues/2911 is fixed.
 default = ["hex"]
+
+generic-array-014 = ["dep:generic-array-014"]
 
 [package.metadata.docs.rs]
 all-features = true

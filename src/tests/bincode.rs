@@ -41,7 +41,7 @@ fn roundtrip_array() {
     let val_bigger_bytes = bincode_serialize(val_bigger).unwrap();
     assert_eq!(
         bincode_deserialize::<TestArray>(&val_bigger_bytes).unwrap_err(),
-        "OtherString(\"Expected byte array of length 16, got 17\")"
+        "OtherString(\"Expected a bytestring of length 16, got 17\")"
     );
 
     let val_smaller = SmallerTestArray {
@@ -50,7 +50,7 @@ fn roundtrip_array() {
     let val_smaller_bytes = bincode_serialize(val_smaller).unwrap();
     assert_eq!(
         bincode_deserialize::<TestArray>(&val_smaller_bytes).unwrap_err(),
-        "OtherString(\"Expected byte array of length 16, got 15\")"
+        "OtherString(\"Expected a bytestring of length 16, got 15\")"
     );
 }
 

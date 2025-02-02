@@ -5,9 +5,12 @@ use core::marker::PhantomData;
 use serde::{Deserializer, Serializer};
 
 use crate::encoding::Encoding;
-use crate::low_level::{self, TryFromArray, TryFromSliceRef};
+use crate::low_level;
 
-/// A container for array-like data, e.g. Rust stack arrays, or `generic_array::GenericArray<...>`.
+/// A container for array-like data, e.g. Rust stack arrays.
+///
+/// For a `GenericArray` from `generic-array=0.14` with the size parametrized
+/// by a generic parameter, use [`GenericArray014`].
 ///
 /// For use in the `#[serde(with)]` field attribute.
 ///
@@ -18,7 +21,7 @@ use crate::low_level::{self, TryFromArray, TryFromSliceRef};
 ///
 /// Requirements:
 /// - serializer requires the field to implement `AsRef<[u8]>`;
-/// - deserializer requires the field to implement [`TryFromArray`] or `TryFrom<[u8; N]>`.
+/// - deserializer requires the field to implement `TryFrom<[u8; N]>`.
 pub struct ArrayLike<Enc: Encoding>(PhantomData<Enc>);
 
 impl<Enc: Encoding> ArrayLike<Enc> {
@@ -35,7 +38,7 @@ impl<Enc: Encoding> ArrayLike<Enc> {
     pub fn deserialize<'de, T, E, D, const N: usize>(deserializer: D) -> Result<T, D::Error>
     where
         D: Deserializer<'de>,
-        T: TryFromArray<E, N>,
+        T: TryFrom<[u8; N], Error = E>,
         E: fmt::Display,
     {
         low_level::deserialize_array::<Enc, N, _, _, _>(deserializer)
@@ -48,7 +51,7 @@ impl<Enc: Encoding> ArrayLike<Enc> {
 ///
 /// Requirements:
 /// - serializer requires the field to implement `AsRef<[u8]>`;
-/// - deserializer requires the field to implement [`TryFromSliceRef`] or `TryFrom<&[u8]>`.
+/// - deserializer requires the field to implement `TryFrom<&[u8]>`.
 pub struct SliceLike<Enc: Encoding>(PhantomData<Enc>);
 
 impl<Enc: Encoding> SliceLike<Enc> {
@@ -65,10 +68,44 @@ impl<Enc: Encoding> SliceLike<Enc> {
     pub fn deserialize<'de, T, E, D>(deserializer: D) -> Result<T, D::Error>
     where
         D: Deserializer<'de>,
-        T: for<'a> TryFromSliceRef<'a, E>,
+        T: for<'a> TryFrom<&'a [u8], Error = E>,
         E: fmt::Display,
     {
         low_level::deserialize_slice::<Enc, _, _, _>(deserializer)
+    }
+}
+
+/// A container for slice-like data with borrow constructor,
+/// e.g. `GenericArray` from `generic-array=1`.
+///
+/// Note that the object will still be cloned, hence the `Clone` requirement.
+///
+/// For use in the `#[serde(with)]` field attribute.
+///
+/// Requirements:
+/// - serializer requires the field to implement `AsRef<[u8]>`;
+/// - deserializer requires the field to implement `Clone` and `&Self: TryFrom<&[u8]>`.
+pub struct BorrowedSliceLike<Enc: Encoding>(PhantomData<Enc>);
+
+impl<Enc: Encoding> BorrowedSliceLike<Enc> {
+    /// Serializes slice-like data.
+    pub fn serialize<T, S>(obj: &T, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        T: AsRef<[u8]>,
+        S: Serializer,
+    {
+        low_level::serialize_slice::<Enc, _>(obj.as_ref(), serializer)
+    }
+
+    /// Deserializes into slice-like data.
+    pub fn deserialize<'de, T, E, D>(deserializer: D) -> Result<T, D::Error>
+    where
+        D: Deserializer<'de>,
+        T: Clone,
+        for<'a> &'a T: TryFrom<&'a [u8], Error = E>,
+        E: fmt::Display,
+    {
+        low_level::deserialize_borrowed_slice::<Enc, _, _, _>(deserializer)
     }
 }
 
@@ -96,10 +133,48 @@ impl<Enc: Encoding> BoxedArrayLike<Enc> {
     pub fn deserialize<'de, T, E, D, const N: usize>(deserializer: D) -> Result<T, D::Error>
     where
         D: Deserializer<'de>,
-        T: TryFromArray<E, N>,
+        T: TryFrom<[u8; N], Error = E>,
         E: fmt::Display,
     {
         low_level::deserialize_array::<Enc, N, _, _, _>(deserializer)
+    }
+}
+
+/// A container for `generic_array::GenericArray<...>` from `generic-array=0.14`
+/// (either with a fixed size or generic).
+///
+/// For use in the `#[serde(with)]` field attribute.
+///
+/// Note that the length of the array will be serialized as well;
+/// this is caused by `serde` not being able to communicate to format implementations
+/// that the array has a constant size.
+/// See <https://github.com/serde-rs/serde/issues/2120> for details.
+#[cfg(feature = "generic-array-014")]
+pub struct GenericArray014<Enc: Encoding>(PhantomData<Enc>);
+
+#[cfg(feature = "generic-array-014")]
+impl<Enc: Encoding> GenericArray014<Enc> {
+    /// Serializes array-like data.
+    pub fn serialize<L, S>(
+        obj: &generic_array_014::GenericArray<u8, L>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        L: generic_array_014::ArrayLength<u8>,
+        S: Serializer,
+    {
+        low_level::serialize_slice::<Enc, _>(obj.as_ref(), serializer)
+    }
+
+    /// Deserializes into array-like data.
+    pub fn deserialize<'de, L, D>(
+        deserializer: D,
+    ) -> Result<generic_array_014::GenericArray<u8, L>, D::Error>
+    where
+        D: Deserializer<'de>,
+        L: generic_array_014::ArrayLength<u8>,
+    {
+        low_level::deserialize_generic_array_014::<Enc, L, _>(deserializer)
     }
 }
 
