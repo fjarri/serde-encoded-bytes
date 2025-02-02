@@ -5,18 +5,6 @@ use serde::{de, Deserializer, Serializer};
 
 use crate::encoding::Encoding;
 
-/// A type of a trait alias, to work around <https://github.com/rust-lang/rust/issues/113517>.
-/// If not for that issue, we could just use `TryFrom<&'a [u8]>` directly in the bounds.
-pub trait TryFromSliceRef<'a, E>: TryFrom<&'a [u8], Error = E> {}
-
-impl<'a, T> TryFromSliceRef<'a, T::Error> for T where T: TryFrom<&'a [u8]> {}
-
-/// A type of a trait alias, to work around <https://github.com/rust-lang/rust/issues/113517>.
-/// If not for that issue, we could just use `TryFrom<[u8; N]>` directly in the bounds.
-pub trait TryFromArray<E, const N: usize>: TryFrom<[u8; N], Error = E> {}
-
-impl<T, const N: usize> TryFromArray<T::Error, N> for T where T: TryFrom<[u8; N]> {}
-
 pub(crate) fn serialize_slice<Enc, S>(value: &[u8], serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
@@ -29,13 +17,13 @@ where
     }
 }
 
-struct SliceVisitor<Enc, T, V>(PhantomData<(Enc, T, V)>);
+struct SliceVisitor<Enc, T, E>(PhantomData<(Enc, T, E)>);
 
-impl<'de, Enc, T, V> de::Visitor<'de> for SliceVisitor<Enc, T, V>
+impl<Enc, T, E> de::Visitor<'_> for SliceVisitor<Enc, T, E>
 where
     Enc: Encoding,
-    T: for<'a> TryFromSliceRef<'a, V>,
-    V: fmt::Display,
+    T: for<'a> TryFrom<&'a [u8], Error = E>,
+    E: fmt::Display,
 {
     type Value = T;
 
@@ -43,9 +31,9 @@ where
         write!(f, "a bytestring")
     }
 
-    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    fn visit_str<SE>(self, v: &str) -> Result<Self::Value, SE>
     where
-        E: de::Error,
+        SE: de::Error,
     {
         let bytes = Enc::decode(v)?;
         AsRef::<[u8]>::as_ref(&bytes)
@@ -53,21 +41,21 @@ where
             .map_err(de::Error::custom)
     }
 
-    fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+    fn visit_bytes<SE>(self, v: &[u8]) -> Result<Self::Value, SE>
     where
-        E: de::Error,
+        SE: de::Error,
     {
         v.try_into().map_err(de::Error::custom)
     }
 }
 
-struct ArrayVisitor<Enc, T, V, const N: usize>(PhantomData<(Enc, T, V)>);
+struct ArrayVisitor<Enc, T, E, const N: usize>(PhantomData<(Enc, T, E)>);
 
-impl<'de, Enc, T, V, const N: usize> de::Visitor<'de> for ArrayVisitor<Enc, T, V, N>
+impl<Enc, T, E, const N: usize> de::Visitor<'_> for ArrayVisitor<Enc, T, E, N>
 where
     Enc: Encoding,
-    T: TryFromArray<V, N>,
-    V: fmt::Display,
+    T: TryFrom<[u8; N], Error = E>,
+    E: fmt::Display,
 {
     type Value = T;
 
@@ -75,9 +63,9 @@ where
         write!(f, "a bytestring of length {N}")
     }
 
-    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    fn visit_str<SE>(self, v: &str) -> Result<Self::Value, SE>
     where
-        E: de::Error,
+        SE: de::Error,
     {
         let bytes = Enc::decode(v)?;
         let bytes_len = bytes.len();
@@ -89,9 +77,9 @@ where
         T::try_from(arr).map_err(de::Error::custom)
     }
 
-    fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+    fn visit_bytes<SE>(self, v: &[u8]) -> Result<Self::Value, SE>
     where
-        E: de::Error,
+        SE: de::Error,
     {
         let v_len = v.len();
         let arr = <[u8; N]>::try_from(v).map_err(|_| {
@@ -101,31 +89,31 @@ where
     }
 }
 
-pub(crate) fn deserialize_slice<'de, Enc: Encoding, T, V, D>(deserializer: D) -> Result<T, D::Error>
+pub(crate) fn deserialize_slice<'de, Enc: Encoding, T, E, D>(deserializer: D) -> Result<T, D::Error>
 where
     D: Deserializer<'de>,
-    T: for<'a> TryFromSliceRef<'a, V>,
-    V: fmt::Display,
+    T: for<'a> TryFrom<&'a [u8], Error = E>,
+    E: fmt::Display,
 {
     if deserializer.is_human_readable() {
-        deserializer.deserialize_str(SliceVisitor::<Enc, T, V>(PhantomData))
+        deserializer.deserialize_str(SliceVisitor::<Enc, T, E>(PhantomData))
     } else {
-        deserializer.deserialize_bytes(SliceVisitor::<Enc, T, V>(PhantomData))
+        deserializer.deserialize_bytes(SliceVisitor::<Enc, T, E>(PhantomData))
     }
 }
 
-pub(crate) fn deserialize_array<'de, Enc: Encoding, const N: usize, T, V, D>(
+pub(crate) fn deserialize_array<'de, Enc: Encoding, const N: usize, T, E, D>(
     deserializer: D,
 ) -> Result<T, D::Error>
 where
     D: Deserializer<'de>,
-    T: TryFromArray<V, N>,
-    V: fmt::Display,
+    T: TryFrom<[u8; N], Error = E>,
+    E: fmt::Display,
 {
     if deserializer.is_human_readable() {
-        deserializer.deserialize_str(ArrayVisitor::<Enc, T, V, N>(PhantomData))
+        deserializer.deserialize_str(ArrayVisitor::<Enc, T, E, N>(PhantomData))
     } else {
-        deserializer.deserialize_bytes(ArrayVisitor::<Enc, T, V, N>(PhantomData))
+        deserializer.deserialize_bytes(ArrayVisitor::<Enc, T, E, N>(PhantomData))
     }
 }
 

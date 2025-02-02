@@ -5,7 +5,7 @@ use core::marker::PhantomData;
 use serde::{Deserializer, Serializer};
 
 use crate::encoding::Encoding;
-use crate::low_level::{self, TryFromArray, TryFromSliceRef};
+use crate::low_level;
 
 /// A container for array-like data, e.g. Rust stack arrays, or `generic_array::GenericArray<...>`.
 ///
@@ -18,7 +18,7 @@ use crate::low_level::{self, TryFromArray, TryFromSliceRef};
 ///
 /// Requirements:
 /// - serializer requires the field to implement `AsRef<[u8]>`;
-/// - deserializer requires the field to implement [`TryFromArray`] or `TryFrom<[u8; N]>`.
+/// - deserializer requires the field to implement `TryFrom<[u8; N]>`.
 pub struct ArrayLike<Enc: Encoding>(PhantomData<Enc>);
 
 impl<Enc: Encoding> ArrayLike<Enc> {
@@ -35,7 +35,7 @@ impl<Enc: Encoding> ArrayLike<Enc> {
     pub fn deserialize<'de, T, E, D, const N: usize>(deserializer: D) -> Result<T, D::Error>
     where
         D: Deserializer<'de>,
-        T: TryFromArray<E, N>,
+        T: TryFrom<[u8; N], Error = E>,
         E: fmt::Display,
     {
         low_level::deserialize_array::<Enc, N, _, _, _>(deserializer)
@@ -48,7 +48,7 @@ impl<Enc: Encoding> ArrayLike<Enc> {
 ///
 /// Requirements:
 /// - serializer requires the field to implement `AsRef<[u8]>`;
-/// - deserializer requires the field to implement [`TryFromSliceRef`] or `TryFrom<&[u8]>`.
+/// - deserializer requires the field to implement `TryFrom<&[u8]>`.
 pub struct SliceLike<Enc: Encoding>(PhantomData<Enc>);
 
 impl<Enc: Encoding> SliceLike<Enc> {
@@ -65,7 +65,7 @@ impl<Enc: Encoding> SliceLike<Enc> {
     pub fn deserialize<'de, T, E, D>(deserializer: D) -> Result<T, D::Error>
     where
         D: Deserializer<'de>,
-        T: for<'a> TryFromSliceRef<'a, E>,
+        T: for<'a> TryFrom<&'a [u8], Error = E>,
         E: fmt::Display,
     {
         low_level::deserialize_slice::<Enc, _, _, _>(deserializer)
@@ -96,7 +96,7 @@ impl<Enc: Encoding> BoxedArrayLike<Enc> {
     pub fn deserialize<'de, T, E, D, const N: usize>(deserializer: D) -> Result<T, D::Error>
     where
         D: Deserializer<'de>,
-        T: TryFromArray<E, N>,
+        T: TryFrom<[u8; N], Error = E>,
         E: fmt::Display,
     {
         low_level::deserialize_array::<Enc, N, _, _, _>(deserializer)

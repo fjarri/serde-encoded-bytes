@@ -23,7 +23,6 @@ mod tests;
 
 pub use containers::{ArrayLike, BoxedArrayLike, SliceLike};
 pub use encoding::Encoding;
-pub use low_level::{TryFromArray, TryFromSliceRef};
 
 // Specifically enable `Hex` for tests, since we need some encoding to be specified.
 // Should be removed when https://github.com/rust-lang/cargo/issues/2911 is fixed.
