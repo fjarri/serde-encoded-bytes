@@ -1,6 +1,6 @@
 [package]
 name = "serde-encoded-bytes"
-version = "0.2.0"
+version = "0.2.1-dev"
 edition = "2021"
 license = "MIT"
 authors = ["Bogdan Opanchuk <bogdan@opanchuk.net>"]

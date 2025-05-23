@@ -14,4 +14,4 @@ pub use traits::Encoding;
 pub use self::hex::Hex;
 
 #[cfg(feature = "base64")]
-pub use self::base64::Base64;
+pub use self::base64::{Base64, Base64Url};

@@ -33,4 +33,4 @@ pub use containers::GenericArray014;
 pub use encoding::Hex;
 
 #[cfg(feature = "base64")]
-pub use encoding::Base64;
+pub use encoding::{Base64, Base64Url};
