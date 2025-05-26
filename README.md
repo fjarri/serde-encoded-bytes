@@ -73,10 +73,16 @@ As you can see, the serialization of the example above is now more efficient in 
 Note that due to `serde` limitations (see <https://github.com/serde-rs/serde/issues/2120>) fixed-size arrays will still be serialized with their length included in binary formats.
 
 
+## Features
+
+- `hex`: hex encoding support (enabled by default);
+- `base64`: base64 encoding support.
+
+
 ## Tested formats
 
 While this crate is supposed to work for any format that supports `serde`, it is specifically tested on:
-- [`bincode`](https://crates.io/crates/bincode) v2.0.0-rc.3
+- [`bincode`](https://crates.io/crates/bincode) v2
 - [`ciborium`](https://crates.io/crates/ciborium) v0.2
 - [`rmp-serde`](https://crates.io/crates/rmp-serde) v1
 - [`serde_asn1_der`](https://crates.io/crates/serde_asn1_der) v0.8
