@@ -20,7 +20,8 @@ fn bincode_serialize<T: Serialize>(value: T) -> Result<Vec<u8>, String> {
 }
 
 fn bincode_deserialize<'de, T: Deserialize<'de>>(bytes: &'de [u8]) -> Result<T, String> {
-    bincode::serde::decode_borrowed_from_slice(bytes, bincode::config::standard())
+    bincode::serde::borrow_decode_from_slice(bytes, bincode::config::standard())
+        .map(|(decoded, _size)| decoded)
         .map_err(|err| err.to_string())
 }
 

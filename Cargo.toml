@@ -16,10 +16,13 @@ hex = { version = "0.4", default-features = false, features = ["alloc"], optiona
 base64 = { version = "0.22", default-features = false, features = ["alloc"], optional = true }
 generic-array-014 = { package = "generic-array", version = "0.14", default-features = false, optional = true }
 
+# Dev dependency, but has to be here since dev dependencies can't be optional.
+# Needs to be optional because it requires higher MSRV than the rest.
+bincode = { version = "2", default-features = false, features = ["alloc", "serde"], optional = true }
+
 [dev-dependencies]
 serde = { version = "1", default-features = false, features = ["derive"] }
 hex = { version = "0.4", default-features = false, features = ["alloc"] }
-bincode = { version = "=2.0.0-rc.3", default-features = false, features = ["alloc", "serde"] }
 rmp-serde = "1"
 serde_json = "1"
 ciborium = "0.2"
