@@ -184,7 +184,8 @@ mod tests {
 
     use serde::{Deserialize, Serialize};
 
-    use crate::{encoding::Hex, ArrayLike, BoxedArrayLike, SliceLike};
+    use super::{ArrayLike, BoxedArrayLike, SliceLike};
+    use crate::encoding::Hex;
 
     #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
     struct FixedArrayStruct(#[serde(with = "ArrayLike::<Hex>")] [u8; 4]);
@@ -216,6 +217,22 @@ mod tests {
         let val = BoxedArrayStruct([1, 2, 3, 4].into());
         let val_bytes = rmp_serde::to_vec(&val).unwrap();
         let val_back = rmp_serde::from_slice::<BoxedArrayStruct>(&val_bytes).unwrap();
+        assert_eq!(val, val_back);
+    }
+
+    #[cfg(feature = "generic-array-014")]
+    #[test]
+    fn roundtrip_generic_array_014() {
+        use generic_array_014::{typenum::U4, GenericArray};
+
+        use super::GenericArray014;
+
+        #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+        struct GA014Struct(#[serde(with = "GenericArray014::<Hex>")] GenericArray<u8, U4>);
+
+        let val = GA014Struct([1, 2, 3, 4].into());
+        let val_bytes = rmp_serde::to_vec(&val).unwrap();
+        let val_back = rmp_serde::from_slice::<GA014Struct>(&val_bytes).unwrap();
         assert_eq!(val, val_back);
     }
 }
